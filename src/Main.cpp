@@ -345,7 +345,7 @@ int main(int argc, char *argv[])
 {
 	if (argc <= 2)
 	{
-		std::cout << "Freeware Online Command-line server\nHow to use:\nserver 'port'\n";
+		std::cout << "Freeware Online Command-line server\nHow to use:\nserver 'ip' 'port'\n";
 		return -1;
 	}
 	else
