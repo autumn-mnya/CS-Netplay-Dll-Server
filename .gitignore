@@ -3,6 +3,7 @@
 /.vscode
 /Debug
 /Release
+/build/release
 netplay.vcxproj.user
 
 CaveStory/fps
