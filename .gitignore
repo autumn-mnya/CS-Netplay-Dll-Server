@@ -1,5 +1,6 @@
 /.git
 /.vs
+/.vscode
 /Debug
 /Release
 netplay.vcxproj.user
@@ -10,3 +11,7 @@ CaveStory/Config.dat
 CaveStory/Profile.dat
 CaveStory/window.rect
 CaveStory/mods/netplay
+build/server.exe
+*.pdb
+*.exe
+*.ilk
