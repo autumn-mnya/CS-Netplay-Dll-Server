@@ -59,6 +59,9 @@ struct VIRTUAL_PLAYER
 	int shockT;
 	int bubble;
 	int stage;
+	short life;
+	short max_life;
+	int mim;
 };
 
 struct PACKET
