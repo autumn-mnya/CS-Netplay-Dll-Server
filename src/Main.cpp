@@ -175,7 +175,7 @@ void HandleServerEvent(ENetEvent event)
 						//if(HIDE_AND_SEEK)
 						//   do something to overwrite the client name with 0's?
 						repPacketData->Write(clients[i].name, 1, MAX_NAME);	//name
-						repPacketData->WriteLE32(packetData->ReadLE32());       //client's player num
+						repPacketData->WriteLE32(clients[i].player_num);       //client's player num
 						repPacketData->WriteLE32(packetData->ReadLE32());		//x
 						repPacketData->WriteLE32(packetData->ReadLE32());		//y
 						repPacketData->WriteLE32(packetData->ReadLE32());		//up
