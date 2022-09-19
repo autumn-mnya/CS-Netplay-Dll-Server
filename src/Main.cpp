@@ -142,101 +142,111 @@ void HandleServerEvent(ENetEvent event)
 				{
 					switch (packetData->ReadLE32())
 					{
-					case PACKETCODE_DEFINE_PLAYER:
-						//Load name
-						packetData->Read(clients[i].name, 1, MAX_NAME);
-						clients[i].player_num = i;
+						case PACKETCODE_DEFINE_PLAYER:
+							//Load name
+							packetData->Read(clients[i].name, 1, MAX_NAME);
+							clients[i].player_num = i;
 
-						//Broadcast join message
-						char joinMsg[PACKET_DATA];
-						sprintf(joinMsg, "%s has joined", clients[i].name);
-						BroadcastChatMessage(joinMsg);
-						break;
-					case PACKETCODE_CHAT_MESSAGE:
-						packetData->Read(wounceMsg, 1, event.packet->dataLength - 8);
-						BroadcastChatMessage(wounceMsg);
-						break;
-					case PACKETCODE_REPLICATE_PLAYER:
-						//Bounce to other clients
-						uint8_t packet[0x100];
-						memset(packet, 0, 0x100);
+							//Broadcast join message
+							char joinMsg[PACKET_DATA];
+							sprintf(joinMsg, "%s has joined", clients[i].name);
+							BroadcastChatMessage(joinMsg);
+							break;
+						case PACKETCODE_CHAT_MESSAGE:
+							packetData->Read(wounceMsg, 1, event.packet->dataLength - 8);
+							BroadcastChatMessage(wounceMsg);
+							break;
+						case PACKETCODE_REPLICATE_PLAYER:
+							//Bounce to other clients
+							uint8_t packet[0x100];
+							memset(packet, 0, 0x100);
 
-						repPacketData = new ByteStream(packet, 0x100);
+							repPacketData = new ByteStream(packet, 0x100);
 
-						repPacketData->WriteLE32(NET_VERSION);
-						repPacketData->WriteLE32(PACKETCODE_REPLICATE_PLAYER);
+							repPacketData->WriteLE32(NET_VERSION);
+							repPacketData->WriteLE32(PACKETCODE_REPLICATE_PLAYER);
 
-						//Set attributes
-						repPacketData->WriteLE32(i);
-						repPacketData->WriteLE32(packetData->ReadLE32());		//cond
-						repPacketData->WriteLE32(packetData->ReadLE32());		//unit
-						repPacketData->WriteLE32(packetData->ReadLE32());		//flag
-						//TODO
-						//if(HIDE_AND_SEEK)
-						//   do something to overwrite the client name with 0's?
-						repPacketData->Write(clients[i].name, 1, MAX_NAME);	//name
-						repPacketData->WriteLE32(clients[i].player_num);       //client's player num
-						repPacketData->WriteLE32(packetData->ReadLE32());		//x
-						repPacketData->WriteLE32(packetData->ReadLE32());		//y
-						repPacketData->WriteLE32(packetData->ReadLE32());		//up
-						repPacketData->WriteLE32(packetData->ReadLE32());		//down
-						repPacketData->WriteLE32(packetData->ReadLE32());		//arms
-						repPacketData->WriteLE32(packetData->ReadLE32());		//equip
-						repPacketData->WriteLE32(packetData->ReadLE32());		//ani_no
-						repPacketData->WriteLE32(packetData->ReadLE32());		//direct
-						repPacketData->WriteLE32(packetData->ReadLE32());		//shock
-						repPacketData->WriteLE32(packetData->ReadLE32());		//life
-						repPacketData->WriteLE32(packetData->ReadLE32());		//max life
-						repPacketData->WriteLE32(packetData->ReadLE32());		//stage
-						repPacketData->WriteLE32(packetData->ReadLE32());		//mim
-						repPacketData->WriteLE32(packetData->ReadLE32());		//hide_vp_on_map / hide_me_on_map
-						delete repPacketData;
+							//Set attributes
+							repPacketData->WriteLE32(i);
+							repPacketData->WriteLE32(packetData->ReadLE32());		//cond
+							repPacketData->WriteLE32(packetData->ReadLE32());		//unit
+							repPacketData->WriteLE32(packetData->ReadLE32());		//flag
+							//TODO
+							//if(HIDE_AND_SEEK)
+							//   do something to overwrite the client name with 0's?
+							repPacketData->Write(clients[i].name, 1, MAX_NAME);	//name
+							repPacketData->WriteLE32(clients[i].player_num);       //client's player num
+							repPacketData->WriteLE32(packetData->ReadLE32());		//x
+							repPacketData->WriteLE32(packetData->ReadLE32());		//y
+							repPacketData->WriteLE32(packetData->ReadLE32());		//xm
+							repPacketData->WriteLE32(packetData->ReadLE32());		//ym
+							repPacketData->WriteLE32(packetData->ReadLE32());		//up
+							repPacketData->WriteLE32(packetData->ReadLE32());		//down
+							repPacketData->WriteLE32(packetData->ReadLE32());		//arms
+							repPacketData->WriteLE32(packetData->ReadLE32());		//equip
+							repPacketData->WriteLE32(packetData->ReadLE32());		//ani_no
+							repPacketData->WriteLE32(packetData->ReadLE32());		//hit.front
+							repPacketData->WriteLE32(packetData->ReadLE32());		//hit.top
+							repPacketData->WriteLE32(packetData->ReadLE32());		//hit.back
+							repPacketData->WriteLE32(packetData->ReadLE32());		//hit.bottom
+							repPacketData->WriteLE32(packetData->ReadLE32());		//direct
+							repPacketData->WriteLE32(packetData->ReadLE32());		//shock
+							repPacketData->WriteLE32(packetData->ReadLE32());		//life
+							repPacketData->WriteLE32(packetData->ReadLE32());		//max life
+							repPacketData->WriteLE32(packetData->ReadLE32());		//stage
+							repPacketData->WriteLE32(packetData->ReadLE32());		//mim
+							repPacketData->WriteLE32(packetData->ReadLE32());		//hide_vp_on_map / hide_me_on_map (bool)
+							repPacketData->WriteLE32(packetData->ReadLE32());		//is_being_held (bool)
+							repPacketData->WriteLE32(packetData->ReadLE32());		//my_shooting (bool)
+							repPacketData->WriteLE32(packetData->ReadLE32());		//soft_rensha (int)
+							repPacketData->WriteLE32(packetData->ReadLE32());		//arms_level (int)
+							delete repPacketData;
 
-						for (int v = 0; v < MAX_CLIENTS; v++)
-						{
-							if (v != i && clients[v].peer)
+							for (int v = 0; v < MAX_CLIENTS; v++)
 							{
-								//Send packet
-								ENetPacket* definePacket = enet_packet_create(packet, 0x100, 0);
-								enet_peer_send((ENetPeer*)clients[v].peer, 0, definePacket);
+								if (v != i && clients[v].peer)
+								{
+									//Send packet
+									ENetPacket* definePacket = enet_packet_create(packet, 0x100, 0);
+									enet_peer_send((ENetPeer*)clients[v].peer, 0, definePacket);
+								}
 							}
-						}
-						break;
+							break;
 
-					case PACKETCODE_SKIN:
-						//Set player's skin
-						const int skinDataSize = event.packet->dataLength - 8;
-						free(clients[i].skinData);
-						clients[i].skinData = (uint8_t*)malloc(skinDataSize);
-						clients[i].skinSize = skinDataSize;
-						packetData->Read(clients[i].skinData, 1, skinDataSize);
+						case PACKETCODE_SKIN:
+							//Set player's skin
+							const int skinDataSize = event.packet->dataLength - 8;
+							free(clients[i].skinData);
+							clients[i].skinData = (uint8_t*)malloc(skinDataSize);
+							clients[i].skinSize = skinDataSize;
+							packetData->Read(clients[i].skinData, 1, skinDataSize);
 
-						printf("Received skin for %s\n", clients[i].name);
+							printf("Received skin for %s\n", clients[i].name);
 
-						//Send all players skin
-						const unsigned int packetSize = 12 + skinDataSize;
-						uint8_t* skinPacket = (uint8_t*)malloc(packetSize);
-						ByteStream* skinPacketData = new ByteStream(skinPacket, packetSize);
-						skinPacketData->WriteLE32(NET_VERSION);
-						skinPacketData->WriteLE32(PACKETCODE_SKIN);
-						skinPacketData->WriteLE32(i);
-						skinPacketData->Write(clients[i].skinData, 1, skinDataSize);
-						delete skinPacketData;
+							//Send all players skin
+							const unsigned int packetSize = 12 + skinDataSize;
+							uint8_t* skinPacket = (uint8_t*)malloc(packetSize);
+							ByteStream* skinPacketData = new ByteStream(skinPacket, packetSize);
+							skinPacketData->WriteLE32(NET_VERSION);
+							skinPacketData->WriteLE32(PACKETCODE_SKIN);
+							skinPacketData->WriteLE32(i);
+							skinPacketData->Write(clients[i].skinData, 1, skinDataSize);
+							delete skinPacketData;
 
-						for (int v = 0; v < MAX_CLIENTS; v++)
-						{
-							if (v != i && clients[v].peer)
+							for (int v = 0; v < MAX_CLIENTS; v++)
 							{
-								//Send packet
-								ENetPacket* definePacket = enet_packet_create(skinPacket, packetSize, ENET_PACKET_FLAG_RELIABLE);
-								enet_peer_send((ENetPeer*)clients[v].peer, 0, definePacket);
-								printf("Sent their skin to %s\n", clients[v].name);
+								if (v != i && clients[v].peer)
+								{
+									//Send packet
+									ENetPacket* definePacket = enet_packet_create(skinPacket, packetSize, ENET_PACKET_FLAG_RELIABLE);
+									enet_peer_send((ENetPeer*)clients[v].peer, 0, definePacket);
+									printf("Sent their skin to %s\n", clients[v].name);
+								}
 							}
-						}
 
-						free(skinPacket);
-						break;
-					}
+							free(skinPacket);
+							break;
+						}
 				}
 				else
 				{

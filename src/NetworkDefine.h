@@ -32,6 +32,7 @@ enum PACKET_CODES
 	PACKETCODE_CHAT_MESSAGE,
 	PACKETCODE_REPLICATE_PLAYER,
 	PACKETCODE_SKIN,
+	PACKETCODE_GRAB_PLAYER,
 };
 
 struct VIRTUAL_PLAYER
@@ -45,6 +46,8 @@ struct VIRTUAL_PLAYER
 	//Position
 	int x;
 	int y;
+	int xm;
+	int ym;
 	int lerpX;
 	int lerpY;
 	std::chrono::high_resolution_clock::duration lerpTick;
@@ -55,6 +58,7 @@ struct VIRTUAL_PLAYER
 	int arms;
 	int equip;
 	int ani_no;
+	RECT hit;
 	int direct;
 	int shock;
 	int shockT;
@@ -65,6 +69,8 @@ struct VIRTUAL_PLAYER
 	unsigned int mim;
 	bool hide_vp_on_map;
 	int player_num;
+	bool shooting;
+	int soft_rensha;
 };
 
 struct PACKET
