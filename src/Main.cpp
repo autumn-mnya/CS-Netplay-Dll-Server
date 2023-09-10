@@ -196,10 +196,6 @@ void HandleServerEvent(ENetEvent event)
 							repPacketData->WriteLE32(packetData->ReadLE32());		//stage
 							repPacketData->WriteLE32(packetData->ReadLE32());		//mim
 							repPacketData->WriteLE32(packetData->ReadLE32());		//hide_vp_on_map / hide_me_on_map (bool)
-							repPacketData->WriteLE32(packetData->ReadLE32());		//is_being_held (bool)
-							repPacketData->WriteLE32(packetData->ReadLE32());		//my_shooting (bool)
-							repPacketData->WriteLE32(packetData->ReadLE32());		//soft_rensha (int)
-							repPacketData->WriteLE32(packetData->ReadLE32());		//arms_level (int)
 							delete repPacketData;
 
 							for (int v = 0; v < MAX_CLIENTS; v++)
