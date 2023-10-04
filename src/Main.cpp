@@ -10,6 +10,20 @@ ENetHost* host;
 ENetAddress hostAddress;
 CLIENT clients[MAX_CLIENTS];
 
+uint8_t* SendDeath()
+{
+	int actual_size = 8;
+
+	uint8_t* l = new uint8_t[actual_size]();
+
+	ByteStream bs(l, actual_size);
+
+	bs.WriteLE32(NET_VERSION);
+	bs.WriteLE32(PACKETCODE_RECEIVE_DEATH);
+
+	return l;
+}
+
 //Functions needed for getting ENetAddress from IP and port
 static int ConvertIpToAddress(ENetAddress* address, const char* name)
 {
@@ -68,7 +82,10 @@ void HandleServerEvent(ENetEvent event)
 				clients[i].peer = (void*)event.peer;
 				printf("User successfully connected,\nHost: %d\n", event.peer->address.host);
 
+				// Autumn, why was the skin packet code still a thing??
+
 				//Send all player skins
+				/*
 				for (int v = 0; v < MAX_CLIENTS; v++)
 				{
 					if (v != i && clients[v].peer && clients[v].skinData)
@@ -88,6 +105,7 @@ void HandleServerEvent(ENetEvent event)
 						free(skinPacket);
 					}
 				}
+				*/
 				break;
 			}
 			else if (i == MAX_CLIENTS - 1)
@@ -209,38 +227,15 @@ void HandleServerEvent(ENetEvent event)
 							}
 							break;
 
-						case PACKETCODE_SKIN:
-							//Set player's skin
-							const int skinDataSize = event.packet->dataLength - 8;
-							free(clients[i].skinData);
-							clients[i].skinData = (uint8_t*)malloc(skinDataSize);
-							clients[i].skinSize = skinDataSize;
-							packetData->Read(clients[i].skinData, 1, skinDataSize);
+						case PACKETCODE_RECEIVE_DEATH:
+							// Death-Link stuff
+							printf("Received deathlink packet from %d\n", event.peer->address.host);
+							uint8_t* packet2 = SendDeath();
 
-							printf("Received skin for %s\n", clients[i].name);
+							ENetPacket* definePacket = enet_packet_create(packet2, 8, ENET_PACKET_FLAG_RELIABLE);
+							enet_host_broadcast(host, 0, definePacket);
 
-							//Send all players skin
-							const unsigned int packetSize = 12 + skinDataSize;
-							uint8_t* skinPacket = (uint8_t*)malloc(packetSize);
-							ByteStream* skinPacketData = new ByteStream(skinPacket, packetSize);
-							skinPacketData->WriteLE32(NET_VERSION);
-							skinPacketData->WriteLE32(PACKETCODE_SKIN);
-							skinPacketData->WriteLE32(i);
-							skinPacketData->Write(clients[i].skinData, 1, skinDataSize);
-							delete skinPacketData;
-
-							for (int v = 0; v < MAX_CLIENTS; v++)
-							{
-								if (v != i && clients[v].peer)
-								{
-									//Send packet
-									ENetPacket* definePacket = enet_packet_create(skinPacket, packetSize, ENET_PACKET_FLAG_RELIABLE);
-									enet_peer_send((ENetPeer*)clients[v].peer, 0, definePacket);
-									printf("Sent their skin to %s\n", clients[v].name);
-								}
-							}
-
-							free(skinPacket);
+							delete[] packet2;
 							break;
 						}
 				}
