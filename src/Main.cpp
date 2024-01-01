@@ -10,6 +10,107 @@ ENetHost* host;
 ENetAddress hostAddress;
 CLIENT clients[MAX_CLIENTS];
 
+struct OTHER_RECT	// The original name for this struct is unknown
+{
+	int front;
+	int top;
+	int back;
+	int bottom;
+};
+
+typedef enum SurfaceID
+{
+	SURFACE_ID_TITLE = 0,
+	SURFACE_ID_PIXEL = 1,
+	SURFACE_ID_LEVEL_TILESET = 2,
+	SURFACE_ID_USERNAME = 3,
+	SURFACE_ID_FADE = 6,
+	SURFACE_ID_ITEM_IMAGE = 8,
+	SURFACE_ID_MAP = 9,
+	SURFACE_ID_SCREEN_GRAB = 10,
+	SURFACE_ID_ARMS = 11,
+	SURFACE_ID_ARMS_IMAGE = 12,
+	SURFACE_ID_ROOM_NAME = 13,
+	SURFACE_ID_STAGE_ITEM = 14,
+	SURFACE_ID_LOADING = 15,
+	SURFACE_ID_MY_CHAR = 16,
+	SURFACE_ID_BULLET = 17,
+	SURFACE_ID_CARET = 19,
+	SURFACE_ID_NPC_SYM = 20,
+	SURFACE_ID_LEVEL_SPRITESET_1 = 21,
+	SURFACE_ID_LEVEL_SPRITESET_2 = 22,
+	SURFACE_ID_NPC_REGU = 23,
+	SURFACE_ID_TEXT_BOX = 26,
+	SURFACE_ID_FACE = 27,
+	SURFACE_ID_LEVEL_BACKGROUND = 28,
+	SURFACE_ID_VALUE_VIEW = 29,
+	SURFACE_ID_TEXT_LINE1 = 30,
+	SURFACE_ID_TEXT_LINE2 = 31,
+	SURFACE_ID_TEXT_LINE3 = 32,
+	SURFACE_ID_TEXT_LINE4 = 33,
+	SURFACE_ID_TEXT_LINE5 = 34,
+	SURFACE_ID_CREDIT_CAST = 35,
+	SURFACE_ID_CREDITS_IMAGE = 36,
+	SURFACE_ID_CASTS = 37,
+	SURFACE_ID_MAX = 40
+} SurfaceID;
+
+typedef struct NPCHAR
+{
+	unsigned char cond;
+	int flag;
+	int x;
+	int y;
+	int xm;
+	int ym;
+	int xm2;
+	int ym2;
+	int tgt_x;
+	int tgt_y;
+	int code_char;
+	int code_flag;
+	int code_event;
+	SurfaceID surf;
+	int hit_voice;
+	int destroy_voice;
+	int life;
+	int exp;
+	int size;
+	int direct;
+	unsigned short bits;
+	RECT rect;
+	int ani_wait;
+	int ani_no;
+	int count1;
+	int count2;
+	int act_no;
+	int act_wait;
+	OTHER_RECT hit;
+	OTHER_RECT view;
+	unsigned char shock;
+	int damage_view;
+	int damage;
+	struct NPCHAR* pNpc;
+} NPCHAR;
+
+typedef struct NPCHARSyncMessage {
+	int npcIndex;
+	NPCHAR npc;
+	// Add other fields as needed
+} NPCHARSyncMessage;
+
+// Function to handle server-side NPCHAR synchronization messages
+void HandleNPCHARSyncMessageServer(ENetEvent event, NPCHARSyncMessage* message) {
+	// Broadcast the NPCHAR synchronization message to all connected clients
+	for (int i = 0; i < MAX_CLIENTS; i++) {
+		if (clients[i].peer != NULL && clients[i].peer != event.peer) {
+			// Send packet
+			ENetPacket* definePacket = enet_packet_create(message, sizeof(NPCHARSyncMessage), 0);
+			enet_peer_send((ENetPeer*)clients[i].peer, 0, definePacket);
+		}
+	}
+}
+
 uint8_t* SendDeath()
 {
 	int actual_size = 8;
@@ -227,8 +328,8 @@ void HandleServerEvent(ENetEvent event)
 							}
 							break;
 
-						case PACKETCODE_RECEIVE_DEATH:
-							// Death-Link stuff
+						case PACKETCODE_RECEIVE_DEATH: // Death-Link stuff
+						{
 							printf("Received deathlink packet from %d\n", event.peer->address.host);
 							uint8_t* packet2 = SendDeath();
 
@@ -236,8 +337,42 @@ void HandleServerEvent(ENetEvent event)
 							enet_host_broadcast(host, 0, definePacket);
 
 							delete[] packet2;
+						}
+							break;
+
+							// Assuming PACKETCODE_NPC_SYNC is used for NPCHAR synchronization
+						case PACKETCODE_NPC_SYNC:
+						{
+							// Handle NPCHAR synchronization data
+							NPCHARSyncMessage npcSyncMessage;
+							packetData->Read(&npcSyncMessage, sizeof(NPCHARSyncMessage), 1);
+
+							// Find the sender's client ID based on their ENetPeer
+							int senderClientID = -1;
+							for (int c = 0; c < MAX_CLIENTS; ++c)
+							{
+								if (clients[c].peer == event.peer)
+								{
+									senderClientID = c;
+									break;
+								}
+							}
+
+							// Broadcast the synchronization message to all other clients
+							for (int v = 0; v < MAX_CLIENTS; v++)
+							{
+								// Avoid sending changes back to the same client
+								if (v != senderClientID && clients[v].peer)
+								{
+									// Send packet
+									ENetPacket* definePacket = enet_packet_create(event.packet->data, event.packet->dataLength, 0);
+									enet_peer_send((ENetPeer*)clients[v].peer, 0, definePacket);
+								}
+							}
 							break;
 						}
+
+					} // end of switch case
 				}
 				else
 				{
