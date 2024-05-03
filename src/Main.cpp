@@ -5,10 +5,33 @@
 #include "Main.h"
 #include "NetworkDefine.h"
 #include "ByteStream.h"
+#include <shlwapi.h>
+
+#include <lua.hpp>
+#include "lua/Lua.h"
+
+char gModulePath[MAX_PATH];
+char gScriptsPath[MAX_PATH];
 
 ENetHost* host;
 ENetAddress hostAddress;
 CLIENT clients[MAX_CLIENTS];
+
+int gNetVersion = 11;
+int packetcode = 0;
+int specialPacketCode = 0; // used for sending a custom string amount of data
+char* specialData = "null";
+
+void GetPaths()
+{
+	// Get executable's path
+	GetModuleFileNameA(NULL, gModulePath, MAX_PATH);
+	PathRemoveFileSpecA(gModulePath);
+
+	// Get path of the data folder
+	strcpy(gScriptsPath, gModulePath);
+	strcat(gScriptsPath, "\\Scripts");
+}
 
 uint8_t* SendDeath()
 {
@@ -18,7 +41,7 @@ uint8_t* SendDeath()
 
 	ByteStream bs(l, actual_size);
 
-	bs.WriteLE32(NET_VERSION);
+	bs.WriteLE32(gNetVersion);
 	bs.WriteLE32(PACKETCODE_RECEIVE_DEATH);
 
 	return l;
@@ -64,6 +87,34 @@ static bool VerifyPort(const char* port)
 std::thread* ServerThread;
 bool toEndThread = false;
 
+// Runs whenever a packetcode is received that isnt in the switch statement, allowing for some amount of lua trickery
+
+int ServerActNetScript()
+{
+	lua_getglobal(gL, "CaveNet");
+	lua_getfield(gL, -1, "ActServer");
+
+	if (lua_isnil(gL, -1))
+	{
+		lua_settop(gL, 0); // Clear stack
+		return BOOLTRUE;
+	}
+
+	if (lua_pcall(gL, 0, 0, 0) != LUA_OK)
+	{
+		const char* error = lua_tostring(gL, -1);
+
+		// ErrorLog(error, 0);
+		printf("ERROR: %s\n", error);
+		// MessageBoxA(ghWnd, "Couldn't execute game act function", "ModScript Error", MB_OK);
+		return BOOLFALSE;
+	}
+
+	lua_settop(gL, 0); // Clear stack
+
+	return BOOLTRUE;
+}
+
 void HandleServerEvent(ENetEvent event)
 {
 	switch (event.type)
@@ -81,31 +132,6 @@ void HandleServerEvent(ENetEvent event)
 				//Set peer
 				clients[i].peer = (void*)event.peer;
 				printf("User successfully connected,\nHost: %d\n", event.peer->address.host);
-
-				// Autumn, why was the skin packet code still a thing??
-
-				//Send all player skins
-				/*
-				for (int v = 0; v < MAX_CLIENTS; v++)
-				{
-					if (v != i && clients[v].peer && clients[v].skinData)
-					{
-						const int packetSize = 12 + clients[v].skinSize;
-						uint8_t* skinPacket = (uint8_t*)malloc(packetSize);
-						ByteStream* skinPacketData = new ByteStream(skinPacket, packetSize);
-						skinPacketData->WriteLE32(NET_VERSION);
-						skinPacketData->WriteLE32(PACKETCODE_SKIN);
-						skinPacketData->WriteLE32(v);
-						skinPacketData->Write(clients[v].skinData, 1, clients[v].skinSize);
-						delete skinPacketData;
-
-						//Send packet
-						ENetPacket* definePacket = enet_packet_create(skinPacket, packetSize, ENET_PACKET_FLAG_RELIABLE);
-						enet_peer_send((ENetPeer*)event.peer, 0, definePacket);
-						free(skinPacket);
-					}
-				}
-				*/
 				break;
 			}
 			else if (i == MAX_CLIENTS - 1)
@@ -156,10 +182,19 @@ void HandleServerEvent(ENetEvent event)
 				char* wounceMsg = new char[event.packet->dataLength - 8];
 				int netver;
 
-				if ((netver = packetData->ReadLE32()) == NET_VERSION)
+				if ((netver = packetData->ReadLE32()) == gNetVersion)
 				{
-					switch (packetData->ReadLE32())
+					packetcode = packetData->ReadLE32();
+					switch (packetcode)
 					{
+						default:
+						{
+							// This runs lua code if its not one of the predefined packetcodes.
+							// We must figure out a way, in here, to allow both normal ID sending, and custom amounts of data sending.
+							// Thanks!
+							ServerActNetScript(); 
+							break;
+						}
 						case PACKETCODE_DEFINE_PLAYER:
 							//Load name
 							packetData->Read(clients[i].name, 1, MAX_NAME);
@@ -181,7 +216,7 @@ void HandleServerEvent(ENetEvent event)
 
 							repPacketData = new ByteStream(packet, 0x100);
 
-							repPacketData->WriteLE32(NET_VERSION);
+							repPacketData->WriteLE32(gNetVersion);
 							repPacketData->WriteLE32(PACKETCODE_REPLICATE_PLAYER);
 
 							//Set attributes
@@ -228,6 +263,7 @@ void HandleServerEvent(ENetEvent event)
 							break;
 
 						case PACKETCODE_RECEIVE_DEATH:
+						{
 							// Death-Link stuff
 							printf("Received deathlink packet from %d\n", event.peer->address.host);
 							uint8_t* packet2 = SendDeath();
@@ -238,10 +274,31 @@ void HandleServerEvent(ENetEvent event)
 							delete[] packet2;
 							break;
 						}
+
+						case PACKETCODE_RECEIVE_CUSTOM_DATA: // Adjust this to match your packet code
+						{
+							// Read data size
+							specialPacketCode = packetData->ReadLE32();
+							uint32_t dataSize = packetData->ReadLE32();
+
+							// Read variable-length data
+							specialData = new char[dataSize];
+							packetData->Read(specialData, 1, dataSize);
+
+							printf("Received custom data from client %d: %s\n", i, specialData);
+
+							// Run lua code here for the user to do stuff
+							ServerActNetScript();
+
+							// Clean up
+							specialData = "null";
+							break;
+						}
+						}
 				}
 				else
 				{
-					printf("User disconnected,\nReason: Invalid NET_VERSION (%d)\nHost: %d\n", netver, event.peer->address.host);
+					printf("User disconnected,\nReason: Invalid gNetVersion (%d)\nHost: %d\n", netver, event.peer->address.host);
 					enet_peer_disconnect_now(event.peer, DISCONNECT_FORCE);
 				}
 
@@ -338,7 +395,7 @@ void BroadcastChatMessage(const char* text)
 	uint8_t* packet = new uint8_t[packetSize];
 
 	ByteStream* packetData = new ByteStream(packet, packetSize);
-	packetData->WriteLE32(NET_VERSION);
+	packetData->WriteLE32(gNetVersion);
 	packetData->WriteLE32(PACKETCODE_CHAT_MESSAGE);
 	packetData->Write(text, 1, strlen(text) + 1);
 	delete packetData;
@@ -353,6 +410,9 @@ void BroadcastChatMessage(const char* text)
 
 int main(int argc, char *argv[])
 {
+	// Get the path of the exe + scripts folder
+	GetPaths();
+
 	if (argc <= 2)
 	{
 		std::cout << "Freeware Online Command-line server\nHow to use:\nserver 'ip' 'port'\n";
@@ -366,6 +426,8 @@ int main(int argc, char *argv[])
 			std::cout << "Failed to initialize ENet\n";
 			return -1;
 		}
+
+		InitNetScript();
 
 		// port "
 		//Start server
@@ -387,6 +449,11 @@ int main(int argc, char *argv[])
 
 			if (command == "quit")
 				break;
+			else if(command == "send_tsc")
+			{
+				packetcode = 22;
+				ServerActNetScript();
+			}
 		}
 
 		KillServer();

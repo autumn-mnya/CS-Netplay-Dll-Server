@@ -5,8 +5,6 @@
 #define MAX_NAME 0x14
 #define NAME_MIN 2
 
-#define NET_VERSION 11
-
 const std::chrono::milliseconds TICKRATE = std::chrono::milliseconds(60);
 #define MAX_CLIENTS 0x80
 const std::chrono::milliseconds VIRTUAL_PLAYER_TIMEOUT = std::chrono::milliseconds(20000);
@@ -28,10 +26,11 @@ enum DISCONNECT_CODES
 
 enum PACKET_CODES
 {
-	PACKETCODE_DEFINE_PLAYER,
-	PACKETCODE_CHAT_MESSAGE,
-	PACKETCODE_REPLICATE_PLAYER,
-	PACKETCODE_RECEIVE_DEATH, // death link
+	PACKETCODE_DEFINE_PLAYER = 0,
+	PACKETCODE_CHAT_MESSAGE = 1,
+	PACKETCODE_REPLICATE_PLAYER = 2,
+	PACKETCODE_RECEIVE_DEATH = 3, // death link
+	PACKETCODE_RECEIVE_CUSTOM_DATA = 4, // custom data for use with lua
 };
 
 struct VIRTUAL_PLAYER
