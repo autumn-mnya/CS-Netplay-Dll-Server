@@ -57,9 +57,25 @@ static int lua_GetSpecialPacketCode(lua_State* L)
 }
 
 static int lua_GetSpecialPacketData(lua_State* L) {
-	lua_pushstring(L, specialData);
+	if (specialData == nullptr)
+		lua_pushstring(L, "No data");
+	else
+		lua_pushstring(L, specialData);
+
 	return 1;
 }
+
+static int lua_GetUsername(lua_State* L) {
+	lua_pushstring(L, lua_Username);
+	return 1;
+}
+
+static int lua_GetPlayerNum(lua_State* L) {
+	lua_pushnumber(L, lua_PlayerNum);
+	return 1;
+}
+
+
 
 int InitNetScript()
 {
@@ -101,6 +117,12 @@ int InitNetScript()
 
 	lua_pushcfunction(gL, lua_GetSpecialPacketData);
 	lua_setfield(gL, -2, "GetSpecialPacketData");
+
+	lua_pushcfunction(gL, lua_GetUsername);
+	lua_setfield(gL, -2, "GetUsername");
+
+	lua_pushcfunction(gL, lua_GetPlayerNum);
+	lua_setfield(gL, -2, "GetPlayerID");
 
 	PushFunctionTable(gL, "ENet", EnetFunctionTable, FUNCTION_TABLE_ENET_SIZE, TRUE);
 

@@ -17,6 +17,10 @@ extern int gNetVersion;
 extern int packetcode;
 extern int specialPacketCode;
 extern char* specialData;
+extern char lua_Username[MAX_NAME];
+extern int lua_PlayerNum;
+extern ENetPeer* lua_peer;
+extern int lua_ClientNum;
 
 int HandleServerSynchronous(void *ptr);
 bool StartServer(const char* ip, const char *port);

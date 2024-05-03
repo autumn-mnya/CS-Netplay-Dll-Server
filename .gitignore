@@ -5,6 +5,7 @@
 /Release
 /build/release
 netplay.vcxproj.user
+/ZZ-FinalRelease
 
 CaveStory/fps
 CaveStory/mute

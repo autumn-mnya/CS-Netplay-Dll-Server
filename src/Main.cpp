@@ -20,7 +20,20 @@ CLIENT clients[MAX_CLIENTS];
 int gNetVersion = 11;
 int packetcode = 0;
 int specialPacketCode = 0; // used for sending a custom string amount of data
-char* specialData = "null";
+char* specialData = nullptr;
+
+char lua_Username[MAX_NAME];
+int lua_PlayerNum;
+ENetPeer* lua_peer; // used for sending packet data back to a specific peer rather than the whole server
+int lua_ClientNum; // used for if we wanna send a packet to everyone except the original sender
+
+void SetLuaUserData(int cliId, char Nm[MAX_NAME], int pid, ENetPeer* peer)
+{
+	lua_ClientNum = cliId;
+	strcpy(lua_Username, Nm);
+	lua_PlayerNum = pid;
+	lua_peer = peer;
+}
 
 void GetPaths()
 {
@@ -189,9 +202,8 @@ void HandleServerEvent(ENetEvent event)
 					{
 						default:
 						{
-							// This runs lua code if its not one of the predefined packetcodes.
-							// We must figure out a way, in here, to allow both normal ID sending, and custom amounts of data sending.
-							// Thanks!
+							// Lua code
+							SetLuaUserData(i, clients[i].name, clients[i].player_num, event.peer);
 							ServerActNetScript(); 
 							break;
 						}
@@ -275,23 +287,22 @@ void HandleServerEvent(ENetEvent event)
 							break;
 						}
 
-						case PACKETCODE_RECEIVE_CUSTOM_DATA: // Adjust this to match your packet code
+						case PACKETCODE_RECEIVE_CUSTOM_DATA:
 						{
 							// Read data size
 							specialPacketCode = packetData->ReadLE32();
 							uint32_t dataSize = packetData->ReadLE32();
 
-							// Read variable-length data
-							specialData = new char[dataSize];
+							// Allocate memory for received data
+							specialData = new char[dataSize + 1]; // +1 for null terminator
 							packetData->Read(specialData, 1, dataSize);
+							specialData[dataSize] = '\0'; // Null-terminate the string
 
-							printf("Received custom data from client %d: %s\n", i, specialData);
+							// printf("Received custom data from client %d: %s\n", i, specialData);
 
 							// Run lua code here for the user to do stuff
+							SetLuaUserData(i, clients[i].name, clients[i].player_num, event.peer);
 							ServerActNetScript();
-
-							// Clean up
-							specialData = "null";
 							break;
 						}
 						}
